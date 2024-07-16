@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+# check if lhs is in ^rhs range
+npm_version_compatible() {
+  # version
+  local lhs="$1"
+  # range
+  local rhs="$2"
+
+  local lhs_without_meta="$(echo "${lhs}+" | cut -d'+' -f1)"
+  local lhs_sem_ver="$(echo "${lhs_without_meta}-.0" | cut -d'-' -f1)"
+  local lhs_major="$(echo "${lhs_sem_ver}.0.0" | cut -d'.' -f1)"
+  local lhs_minor="$(echo "${lhs_sem_ver}.0.0" | cut -d'.' -f2)"
+  local lhs_patch="$(echo "${lhs_sem_ver}.0.0" | cut -d'.' -f3)"
+  local lhs_pre_release="$(echo "${lhs_without_meta}-.0" | cut -d'-' -f2)"
+  local lhs_pre_release_type="$(echo "${lhs_pre_release}.0" | cut -d'.' -f1)"
+  local lhs_pre_release_ver="$(echo "${lhs_pre_release}.0" | cut -d'.' -f2)"
+
+  local rhs_without_meta="$(echo "${rhs}+" | cut -d'+' -f1)"
+  local rhs_sem_ver="$(echo "${rhs_without_meta}-.0" | cut -d'-' -f1)"
+  local rhs_major="$(echo "${rhs_sem_ver}.0.0" | cut -d'.' -f1)"
+  local rhs_minor="$(echo "${rhs_sem_ver}.0.0" | cut -d'.' -f2)"
+  local rhs_patch="$(echo "${rhs_sem_ver}.0.0" | cut -d'.' -f3)"
+  local rhs_pre_release="$(echo "${rhs_without_meta}-.0" | cut -d'-' -f2)"
+  local rhs_pre_release_type="$(echo "${rhs_pre_release}.0" | cut -d'.' -f1)"
+  local rhs_pre_release_ver="$(echo "${rhs_pre_release}.0" | cut -d'.' -f2)"
+
+  if [[(
+    "$lhs_major" -ge "$rhs_major" &&
+    "$lhs_minor" -ge "$rhs_minor" &&
+    "$lhs_patch" -ge "$rhs_patch" &&
+    ("$lhs_pre_release_type" == "$rhs_pre_release_type" || "$lhs_pre_release_type" > "$rhs_pre_release_type") &&
+    "$lhs_pre_release_ver" -ge "$rhs_pre_release_ver"
+  )]]; then
+    true
+  else
+    false
+  fi
+}
+
+set -euo pipefail
+
+ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+SCRIPTS_DIR="$ROOT_DIR/m-scripts"
+
+BUN_VERSION=$(cat "$ROOT_DIR/.tool-versions" | grep -E '^bun ' | cut -b 5-)
+
+cd "$SCRIPTS_DIR"
+
+# bun がインストールされていなかったら、インストールを促す
+if ! command -v bun &> /dev/null; then
+  echo "bun がみつかりませんでした。このプロジェクトではバージョン $BUN_VERSION の bun を利用しています。"
+  echo "npx 経由で bun を利用します。指定の bun をインストールすると起動が速くなるのでおすすめです。"
+  bun() {
+    npx -y bun@$BUN_VERSION "$@"
+  }
+elif ! $(npm_version_compatible "$(bun --version)" "$BUN_VERSION"); then
+  echo "bun のバージョンが $BUN_VERSION に適合していません。"
+  echo "npx 経由で bun を利用します。指定の bun をインストールすると起動が速くなるのでおすすめです。"
+  bun() {
+    npx -y bun@$BUN_VERSION "$@"
+  }
+fi
+
+bun --silent install --frozen-lockfile || bun install || (echo "bun install に失敗しました" && exit 1)
+
+if [[ "${1:-}" == "bun" ]]; then
+  shift
+  bun "$@"
+else
+  bun run lib/m.ts "$@"
+fi
