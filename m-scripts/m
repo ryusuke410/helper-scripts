@@ -25,17 +25,59 @@ npm_version_compatible() {
   local rhs_pre_release_type="$(echo "${rhs_pre_release}.0" | cut -d'.' -f1)"
   local rhs_pre_release_ver="$(echo "${rhs_pre_release}.0" | cut -d'.' -f2)"
 
-  if [[(
-    "$lhs_major" -ge "$rhs_major" &&
-    "$lhs_minor" -ge "$rhs_minor" &&
-    "$lhs_patch" -ge "$rhs_patch" &&
-    ("$lhs_pre_release_type" == "$rhs_pre_release_type" || "$lhs_pre_release_type" > "$rhs_pre_release_type") &&
-    "$lhs_pre_release_ver" -ge "$rhs_pre_release_ver"
-  )]]; then
-    true
-  else
-    false
+  # Compare versions
+  if [[ "$lhs_major" -ne "$rhs_major" ]]; then
+    echo false
+    return 0
   fi
+
+  if [[ "$lhs_minor" -gt "$rhs_minor" ]]; then
+    echo true
+    return 0
+  fi
+  if [[ "$lhs_minor" -lt "$rhs_minor" ]]; then
+    echo false
+    return 0
+  fi
+
+  if [[ "$lhs_patch" -gt "$rhs_patch" ]]; then
+    echo true
+    return 0
+  fi
+  if [[ "$lhs_patch" -lt "$rhs_patch" ]]; then
+    echo false
+    return 0
+  fi
+
+  if [[ -z "$lhs_pre_release_type" ]]; then
+    echo true
+    return 0
+  fi
+  if [[ -z "$rhs_pre_release_type" ]]; then
+    echo false
+    return 0
+  fi
+
+  if [[ "$lhs_pre_release_type" > "$rhs_pre_release_type" ]]; then
+    echo true
+    return 0
+  fi
+  if [[ "$lhs_pre_release_type" < "$rhs_pre_release_type" ]]; then
+    echo false
+    return 0
+  fi
+
+  if [[ "$lhs_pre_release_ver" -gt "$rhs_pre_release_ver" ]]; then
+    echo true
+    return 0
+  fi
+  if [[ "$lhs_pre_release_ver" -lt "$rhs_pre_release_ver" ]]; then
+    echo false
+    return 0
+  fi
+
+  echo true
+  return 0
 }
 
 set -euo pipefail
